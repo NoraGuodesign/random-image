@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片随机抽取器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        /* 图片显示区域 */
+        .image-box {
+            width: 100%;
+            height: 400px;
+            background-color: #eee;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .image-box img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: none; /* 默认隐藏，加载后显示 */
+        }
+
+        .placeholder-text {
+            color: #888;
+            font-size: 16px;
+        }
+
+        /* 按钮与输入框样式 */
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .btn-upload {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-upload:hover {
+            background-color: #d0d0d0;
+        }
+
+        .btn-action {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-action:hover {
+            background-color: #0056b3;
+        }
+
+        .btn-action:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-stop {
+            background-color: #dc3545;
+        }
+        
+        .btn-stop:hover {
+            background-color: #a71d2a;
+        }
+
+        #status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📸 图片随机抽取器</h1>
+
+        <div class="image-box">
+            <span class="placeholder-text" id="placeholder">请先选择图片文件夹...</span>
+            <img id="displayImg" src="" alt="Random Image">
+        </div>
+
+        <div class="controls">
+            <label for="folderInput" class="btn btn-upload">📂 选择文件夹</label>
+            <input type="file" id="folderInput" webkitdirectory directory multiple>
+            
+            <button id="toggleBtn" class="btn btn-action" disabled>开始</button>
+        </div>
+
+        <div id="status">等待导入图片...</div>
+    </div>
+
+    <script>
+        const folderInput = document.getElementById('folderInput');
+        const displayImg = document.getElementById('displayImg');
+        const placeholder = document.getElementById('placeholder');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const statusText = document.getElementById('status');
+
+        let imageFiles = []; // 存储图片文件的 Blob URL
+        let isRunning = false;
+        let timer = null;
+        let currentIndex = 0;
+
+        // 1. 监听文件夹选择
+        folderInput.addEventListener('change', function(e) {
+            const files = e.target.files;
+            imageFiles = [];
+
+            // 过滤出图片文件 (jpg, png, jpeg, gif, webp, etc.)
+            for (let file of files) {
+                if (file.type.startsWith('image/')) {
+                    // 创建临时的 URL 对象，这样不需要上传服务器就能预览
+                    imageFiles.push(URL.createObjectURL(file));
+                }
+            }
+
+            if (imageFiles.length > 0) {
+                statusText.textContent = `已加载 ${imageFiles.length} 张图片`;
+                toggleBtn.disabled = false;
+                toggleBtn.textContent = "开始";
+                
+                // 默认显示第一张
+                showImage(0);
+            } else {
+                statusText.textContent = "未在文件夹中找到图片！";
+                toggleBtn.disabled = true;
+            }
+        });
+
+        // 2. 显示图片的辅助函数
+        function showImage(index) {
+            placeholder.style.display = 'none';
+            displayImg.style.display = 'block';
+            displayImg.src = imageFiles[index];
+        }
+
+        // 3. 按钮点击逻辑
+        toggleBtn.addEventListener('click', function() {
+            if (imageFiles.length === 0) return;
+
+            if (!isRunning) {
+                // === 开始播放 ===
+                startRoulette();
+            } else {
+                // === 停止播放 ===
+                stopRoulette();
+            }
+        });
+
+        function startRoulette() {
+            isRunning = true;
+            toggleBtn.textContent = "停止";
+            toggleBtn.classList.add('btn-stop');
+            toggleBtn.classList.remove('btn-action');
+
+            // 设置定时器，快速切换图片 (50毫秒一次)
+            timer = setInterval(() => {
+                // 随机逻辑：也可以改为顺序播放 (currentIndex + 1) % length
+                currentIndex = Math.floor(Math.random() * imageFiles.length);
+                showImage(currentIndex);
+            }, 50); // 这里的 50 是切换速度，数字越小越快
+        }
+
+        function stopRoulette() {
+            isRunning = false;
+            clearInterval(timer); // 清除定时器
+            
+            toggleBtn.textContent = "开始";
+            toggleBtn.classList.remove('btn-stop');
+            toggleBtn.classList.add('btn-action');
+
+            // 停止时，可以加一个闪烁效果或者不需要
+            statusText.textContent = `选中了第 ${currentIndex + 1} 张图片`;
+        }
+
+    </script>
+</body>
+</html>
